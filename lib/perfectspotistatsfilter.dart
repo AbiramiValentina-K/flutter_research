@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_research/practicejson.dart';
 import 'package:intl/intl.dart';
+
+import 'data/practicejson.dart';
 
 void main() {
   runApp(MyApp());
@@ -19,34 +20,31 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-// PracticeJson pjs = PracticeJson();
+
 class MyFilteringWidget extends StatefulWidget {
   @override
   _MyFilteringWidgetState createState() => _MyFilteringWidgetState();
 }
 
 class _MyFilteringWidgetState extends State<MyFilteringWidget> {
-
+  // Sample data, replace it with your actual data
   List<Map<String, dynamic>> data = PracticeJson().data;
-  // Default filter values
-  int selectedSubEventId = 9;
+  int selectedSubEventId = 5;
   String selectedDateFilter = "All";
   DateTime selectedStartDate = DateTime.now().subtract(const Duration(days: 7));
   DateTime selectedEndDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
-    // Filter the data based on the selected criteria
     List<Map<String, dynamic>> filteredData = filterData();
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Dropdown for SubEventId
         DropdownButton<int>(
           value: selectedSubEventId,
-          items: [9, 10].map((eventId) {
+          items: [5, 9, 10].map((eventId) {
             return DropdownMenuItem<int>(
               value: eventId,
               child: Text('SubEvent $eventId'),
@@ -58,7 +56,6 @@ class _MyFilteringWidgetState extends State<MyFilteringWidget> {
             });
           },
         ),
-        // Dropdown for Date filter
         DropdownButton<String>(
           value: selectedDateFilter,
           items: ["All", "Weekly", "Monthly", "Yearly", "Custom"].map((filter) {
@@ -70,11 +67,14 @@ class _MyFilteringWidgetState extends State<MyFilteringWidget> {
           onChanged: (newValue) {
             setState(() {
               selectedDateFilter = newValue!;
-              updateDateRange(); // Update date range when the filter changes
+              if (selectedDateFilter == "Custom") {
+                _selectDateRange(context);
+              } else {
+                updateDateRange();
+              }
             });
           },
         ),
-        // Date range selection
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -82,8 +82,10 @@ class _MyFilteringWidgetState extends State<MyFilteringWidget> {
               onTap: () {
                 if (selectedDateFilter != "All") {
                   setState(() {
-                    selectedStartDate = selectedStartDate.subtract(_getDateIncrement());
-                    selectedEndDate = selectedEndDate.subtract(_getDateIncrement());
+                    selectedStartDate =
+                        selectedStartDate.subtract(_getDateIncrement());
+                    selectedEndDate =
+                        selectedEndDate.subtract(_getDateIncrement());
                   });
                 }
               },
@@ -99,7 +101,8 @@ class _MyFilteringWidgetState extends State<MyFilteringWidget> {
               onTap: () {
                 if (selectedDateFilter != "All") {
                   setState(() {
-                    selectedStartDate = selectedStartDate.add(_getDateIncrement());
+                    selectedStartDate =
+                        selectedStartDate.add(_getDateIncrement());
                     selectedEndDate = selectedEndDate.add(_getDateIncrement());
                   });
                 }
@@ -108,13 +111,13 @@ class _MyFilteringWidgetState extends State<MyFilteringWidget> {
             ),
           ],
         ),
-        // Display filtered data
         Expanded(
           child: ListView.builder(
             itemCount: filteredData.length,
             itemBuilder: (context, index) {
               return ListTile(
-                title: Text("Performance: ${filteredData[index]['performance']}"),
+                title:
+                    Text("Performance: ${filteredData[index]['performance']}"),
                 subtitle: Text("Date: ${filteredData[index]['createDate']}"),
               );
             },
@@ -125,34 +128,40 @@ class _MyFilteringWidgetState extends State<MyFilteringWidget> {
   }
 
   List<Map<String, dynamic>> filterData() {
-    // Implement your filtering logic here based on the selected criteria
     List<Map<String, dynamic>> result = data;
 
-    // Filter based on subEventId
-    result = result.where((item) => item['subEventId'] == selectedSubEventId).toList();
+    result = result
+        .where((item) => item['subEventId'] == selectedSubEventId)
+        .toList();
 
-    // Filter based on date range (if applicable)
-    if (selectedDateFilter == "Weekly" || selectedDateFilter == "Monthly" || selectedDateFilter == "Yearly") {
+    if (selectedDateFilter == "Weekly" ||
+        selectedDateFilter == "Monthly" ||
+        selectedDateFilter == "Yearly") {
       result = result.where((item) {
         DateTime practiceDate = DateTime.parse(item['createDate']);
-        return practiceDate.isAfter(selectedStartDate) && practiceDate.isBefore(selectedEndDate.add(const Duration(days: 1)));
+        return practiceDate.isAfter(selectedStartDate) &&
+            practiceDate.isBefore(selectedEndDate.add(const Duration(days: 1)));
       }).toList();
     } else if (selectedDateFilter == "Custom") {
-      // Implement custom date range filtering logic
+      result = result.where((item) {
+        DateTime practiceDate = DateTime.parse(item['createDate']);
+        return practiceDate.isAfter(selectedStartDate) &&
+            practiceDate.isBefore(selectedEndDate.add(const Duration(days: 1)));
+      }).toList();
     }
 
     return result;
   }
 
   void updateDateRange() {
-    // Update date range based on the selected filter
     DateTime now = DateTime.now();
     if (selectedDateFilter == "Weekly") {
       selectedStartDate = now.subtract(const Duration(days: 7));
       selectedEndDate = now;
     } else if (selectedDateFilter == "Monthly") {
       selectedStartDate = DateTime(now.year, now.month, 1);
-      selectedEndDate = DateTime(now.year, now.month + 1, 1).subtract(const Duration(days: 1));
+      selectedEndDate = DateTime(now.year, now.month + 1, 1)
+          .subtract(const Duration(days: 1));
     } else if (selectedDateFilter == "Yearly") {
       selectedStartDate = DateTime(now.year, 1, 1);
       selectedEndDate = DateTime(now.year, 12, 31);
@@ -173,4 +182,24 @@ class _MyFilteringWidgetState extends State<MyFilteringWidget> {
     }
     return const Duration(days: 0);
   }
-}
+
+  Future<void> _selectDateRange(BuildContext context) async {
+     DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      initialDateRange:DateTimeRange(start: selectedStartDate, end: selectedEndDate),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        selectedStartDate = picked.start;
+        selectedEndDate = picked.end;
+      });
+    } else {
+      setState(() {
+        selectedDateFilter = "All";
+      });
+    }
+  }
+  }
